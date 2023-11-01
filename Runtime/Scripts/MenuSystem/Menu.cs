@@ -12,6 +12,7 @@ namespace UnityEngine.UI.Extensions
 
         protected virtual void Awake()
         {
+            Debug.Log("Menu.Awake");
             Instance = (T)this;
         }
 

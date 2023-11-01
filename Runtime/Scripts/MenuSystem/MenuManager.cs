@@ -3,8 +3,11 @@
 /// Updated by SimonDarksideJ - Refactored to be a more generic component
 /// Updated by SionDarksideJ - Fixed implementation as it assumed GO's we automatically assigned to instances
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using UnityEditor;
 
 namespace UnityEngine.UI.Extensions
 {
@@ -33,6 +36,16 @@ namespace UnityEngine.UI.Extensions
         private Stack<Menu> menuStack = new Stack<Menu>();
 
         public static MenuManager Instance { get; set; }
+
+        // [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        // private static void Initialize()
+        // {
+        //     if (Instance == null || Instance.gameObject == null)
+        //     {
+        //         Instance = new GameObject("Menu Manager").AddComponent<MenuManager>();
+        //         DontDestroyOnLoad(Instance.gameObject);
+        //     }
+        // }
 
         private void Start()
         {

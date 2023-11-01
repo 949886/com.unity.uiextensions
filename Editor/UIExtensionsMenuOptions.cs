@@ -3,8 +3,10 @@
 #endif
 
 using TMPro;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.UI.Extensions;
 
@@ -130,7 +132,56 @@ namespace UnityEditor.UI
 			Selection.activeGameObject = go;
 		}
 
-		static public GameObject CreateNewUI()
+        private static void PlaceUIElementRoot(GameObject element, MenuCommand menuCommand)
+        {
+            GameObject parent = menuCommand.context as GameObject;
+            bool explicitParentChoice = true;
+            if (parent == null)
+            {
+                parent = GetOrCreateCanvasGameObject();
+                explicitParentChoice = false;
+
+                // If in Prefab Mode, Canvas has to be part of Prefab contents,
+                // otherwise use Prefab root instead.
+                PrefabStage prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
+                if (prefabStage != null && !prefabStage.IsPartOfPrefabContents(parent))
+                    parent = prefabStage.prefabContentsRoot;
+            }
+            if (parent.GetComponentsInParent<Canvas>(true).Length == 0)
+            {
+                // Create canvas under context GameObject,
+                // and make that be the parent which UI element is added under.
+                GameObject canvas = CreateNewUI();
+                canvas.transform.SetParent(parent.transform, false);
+                parent = canvas;
+            }
+
+            // Setting the element to be a child of an element already in the scene should
+            // be sufficient to also move the element to that scene.
+            // However, it seems the element needs to be already in its destination scene when the
+            // RegisterCreatedObjectUndo is performed; otherwise the scene it was created in is dirtied.
+            SceneManager.MoveGameObjectToScene(element, parent.scene);
+
+            Undo.RegisterCreatedObjectUndo(element, "Create " + element.name);
+
+            if (element.transform.parent == null)
+            {
+                Undo.SetTransformParent(element.transform, parent.transform, "Parent " + element.name);
+            }
+
+            GameObjectUtility.EnsureUniqueNameForSibling(element);
+
+            // We have to fix up the undo name since the name of the object was only known after reparenting it.
+            Undo.SetCurrentGroupName("Create " + element.name);
+
+            GameObjectUtility.SetParentAndAlign(element, parent);
+            if (!explicitParentChoice) // not a context click, so center in sceneview
+                SetPositionVisibleinSceneView(parent.GetComponent<RectTransform>(), element.GetComponent<RectTransform>());
+
+            Selection.activeGameObject = element;
+        }
+
+        static public GameObject CreateNewUI()
 		{
 			// Root for the UI
 			var root = new GameObject("Canvas");
@@ -214,10 +265,51 @@ namespace UnityEditor.UI
 			// since there's no point in that, and it's good to keep them as consistent as possible.
 			lbl.color = s_TextColor;
 		}
-		#endregion
-		#endregion
 
-		#region UI Extensions "Create" Menu items
+        #endregion
+        #endregion
+
+        #region UI Extensions "Create" Menu items
+
+        #region Unity UI
+
+        [MenuItem("GameObject/UI/Horizontal Layout Group", false, 2200)]
+        static public void AddHorizontalLayoutGroup(MenuCommand menuCommand)
+        {
+            var root = GetOrCreateCanvasGameObject();
+            var horizontalLayoutGroup = new GameObject("Row");
+            horizontalLayoutGroup.AddComponent<RectTransform>();
+            horizontalLayoutGroup.AddComponent<HorizontalLayoutGroup>();
+            PlaceUIElementRoot(horizontalLayoutGroup, menuCommand);
+            Undo.RegisterCreatedObjectUndo(horizontalLayoutGroup, "Create " + horizontalLayoutGroup.name);
+            Selection.activeObject = horizontalLayoutGroup;
+        }
+
+        [MenuItem("GameObject/UI/Vertical Layout Group", false, 2201)]
+        static public void AddVerticalLayoutGroup(MenuCommand menuCommand)
+        {
+            var root = GetOrCreateCanvasGameObject();
+            var verticalLayoutGroup = new GameObject("Column");
+            verticalLayoutGroup.AddComponent<RectTransform>();
+            verticalLayoutGroup.AddComponent<VerticalLayoutGroup>();
+            PlaceUIElementRoot(verticalLayoutGroup, menuCommand);
+            Undo.RegisterCreatedObjectUndo(verticalLayoutGroup, "Create " + verticalLayoutGroup.name);
+            Selection.activeObject = verticalLayoutGroup;
+        }
+
+        [MenuItem("GameObject/UI/Grid Layout Group", false, 2202)]
+        static public void AddGridLayoutGroup(MenuCommand menuCommand)
+        {
+            var root = GetOrCreateCanvasGameObject();
+            var verticalLayoutGroup = new GameObject("Grid");
+            verticalLayoutGroup.AddComponent<RectTransform>();
+            verticalLayoutGroup.AddComponent<GridLayoutGroup>();
+            PlaceUIElementRoot(verticalLayoutGroup, menuCommand);
+            Undo.RegisterCreatedObjectUndo(verticalLayoutGroup, "Create " + verticalLayoutGroup.name);
+            Selection.activeObject = verticalLayoutGroup;
+        }
+
+        #endregion
 
 		#region Scroll Snap controls
 		[MenuItem("GameObject/UI/Extensions/Layout/Horizontal Scroll Snap", false)]
@@ -1401,6 +1493,22 @@ namespace UnityEditor.UI
 		#endregion
 
 		#region Re-Orderable Lists
+		[MenuItem("GameObject/UI/Extensions/Re-orderable Lists/Re-orderable Vertical List A", false)]
+		static public void AddReorderableScrollRectVertical1(MenuCommand menuCommand)
+		{
+			// Convert the GUID back to an asset path
+			string prefabPath = AssetDatabase.GUIDToAssetPath("e7ab1dcc6d484b64d909061f1c32fd47");
+
+			// Load the prefab as an object
+			GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+
+			GameObject go = Object.Instantiate(prefab);
+			go.name = "Re-orderable Vertical List";	
+			// GameObjectUtility.SetParentAndAlign(go, menuCommand.context as GameObject);
+			PlaceUIElementRoot(go, menuCommand);
+			Undo.RegisterCreatedObjectUndo(go, "Create " + go.name);
+			Selection.activeObject = go;
+		}
 
 		[MenuItem("GameObject/UI/Extensions/Re-orderable Lists/Re-orderable Vertical Scroll Rect", false)]
 		static public void AddReorderableScrollRectVertical(MenuCommand menuCommand)
